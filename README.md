@@ -25,4 +25,3 @@ Add a Gemini API key to `.env` to enable live LLM calls. Without a key, the app 
 ## Data Safety
 
 The generated scenario intentionally includes simulated PII, such as a fake Refugee ID, so the Security Agent can demonstrate detection and redaction before the final payload is rendered.
-
