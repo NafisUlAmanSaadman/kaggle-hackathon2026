@@ -434,28 +434,31 @@ class GeoFormattingAgent(GeminiAgent):
         security_flag: bool,
         security_logs: list[str],
     ) -> str:
-        """Generate the NGO Markdown report via Gemini, with a deterministic fallback."""
-        # redact_pii is called here only on the report-specific payload that is
-        # sent to the LLM – the main pipeline redaction already happened upstream.
-        safe_payload, _ = redact_pii(
-            {
-                "scenario": raw_data.get("scenario_name"),
-                "routes": [route.model_dump() for route in routes],
-                "prioritized_camps": prioritized_camps,
-                "security_flag": security_flag,
-                "security_logs": security_logs,
-            }
-        )
+        """Generate the NGO Markdown report via Gemini, with a deterministic fallback.
+
+        raw_data, routes, and security_logs are all pre-redacted by the orchestrator
+        before reaching this method, so no intermediate redact_pii pass is needed on
+        the prompt payload. We keep a single redact_pii call on the raw LLM *response*
+        text as a final safety net in case the model re-introduces any PII.
+        """
+        prompt_payload = {
+            "scenario": raw_data.get("scenario_name"),
+            "routes": [route.model_dump() for route in routes],
+            "prioritized_camps": prioritized_camps,
+            "security_flag": security_flag,
+            "security_logs": security_logs,
+        }
         prompt = f"""
 You are the Geo-Formatting Agent. Write a concise Markdown report for NGO logistics workers.
 Use an empathetic, operational tone. Do not include personally identifiable information.
 Mention security/equity checks when relevant.
 
-Secure workflow payload:
-{json.dumps(safe_payload, indent=2)}
+Workflow payload:
+{json.dumps(prompt_payload, indent=2)}
 """
         generated = self._generate_text(prompt)
         if generated:
+            # Safety net: redact any PII the model may have re-introduced.
             redacted_report, _ = redact_pii(generated)
             return redacted_report
 

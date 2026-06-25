@@ -256,6 +256,31 @@ def main() -> None:
             st.session_state.pop("workflow_state", None)
             state = None
 
+        # ── Immediate upload preview ──────────────────────────────────────────
+        # Parse the uploaded file right away (lightweight JSON-only, no agent
+        # logic) so sidebar metrics and the map preview reflect the new file
+        # the moment it is selected — before the user clicks Run.
+        upload_preview: dict[str, Any] | None = None
+        if uploaded_file is not None:
+            try:
+                upload_preview = json.loads(uploaded_file.getvalue().decode("utf-8"))
+                if isinstance(upload_preview, dict):
+                    # Update active_data so the map and metrics preview
+                    # the uploaded scenario immediately.
+                    active_data = upload_preview
+                    st.session_state["active_raw_data"] = active_data
+                    st.caption(
+                        f"📄 **{uploaded_file.name}** loaded — "
+                        f"{len(upload_preview.get('warehouses', []))} warehouse(s), "
+                        f"{len(upload_preview.get('camp_blocks', []))} camp(s) detected."
+                    )
+                else:
+                    st.warning("⚠️ Uploaded file is not a JSON object — metrics may be stale.")
+                    upload_preview = None
+            except (ValueError, UnicodeDecodeError):
+                st.warning("⚠️ Could not preview file — it may not be valid JSON.")
+                upload_preview = None
+
         st.divider()
 
         # ── Default scenario controls ─────────────────────────────────────────
@@ -280,7 +305,7 @@ def main() -> None:
 
         st.divider()
 
-        # ── Quick metrics ─────────────────────────────────────────────────────
+        # ── Quick metrics (always reflects the currently active scenario) ─────
         st.metric("Warehouses", len(active_data.get("warehouses", [])))
         st.metric("Camp Blocks", len(active_data.get("camp_blocks", [])))
         st.metric("Weather Alerts", len(active_data.get("weather_alerts", [])))
