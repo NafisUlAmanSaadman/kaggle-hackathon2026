@@ -6,11 +6,15 @@ Features
 * Error handling: ValueError from the security / workflow layer is caught and
   displayed as st.error() – the app never crashes with a raw traceback.
 * Map: Folium route map via streamlit-folium.
+* render_map is cached with st.cache_data (keyed on scenario + routes hash) so
+  it only rebuilds when data actually changes.
+* Stale session state is cleared automatically when the uploaded file changes.
 * Antigravity animation: floating 🚁 and 📦 emojis injected via st.markdown
   with custom CSS – no st.balloons().
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -115,9 +119,30 @@ def node_lookup(raw_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
-def render_map(raw_data: dict[str, Any], routes: list[Route] | None = None) -> folium.Map:
-    """Build a Folium map showing warehouses, camps, and (optionally) routes."""
-    routes = routes or []
+def _map_cache_key(raw_data: dict[str, Any], routes: list[Route]) -> str:
+    """Stable hash key for the render_map cache.
+
+    Uses a SHA-1 of the serialised raw_data + route list so the map only
+    rebuilds when the underlying data actually changes.
+    """
+    payload = json.dumps(
+        {"raw_data": raw_data, "routes": [r.model_dump() for r in routes]},
+        sort_keys=True,
+    )
+    return hashlib.sha1(payload.encode()).hexdigest()
+
+
+@st.cache_data(show_spinner=False)
+def render_map(cache_key: str, raw_data: dict[str, Any], routes_json: str) -> folium.Map:
+    """Build a Folium map showing warehouses, camps, and (optionally) routes.
+
+    ``cache_key`` is a content-hash that busts the cache whenever ``raw_data``
+    or ``routes`` change.  ``routes_json`` carries the serialised routes so
+    Streamlit can hash the arguments correctly (Pydantic models are not
+    directly hashable by st.cache_data).
+    """
+    routes: list[Route] = [Route.model_validate(r) for r in json.loads(routes_json)]
+
     m = folium.Map(location=[21.17, 92.15], zoom_start=11, tiles="CartoDB Positron")
     m.get_root().html.add_child(folium.Element(FLOATING_MARKER_CSS))
 
@@ -222,6 +247,15 @@ def main() -> None:
             help="Must be a valid JSON file matching the scenario schema.",
         )
 
+        # Detect file change: if a new file is loaded, clear stale workflow
+        # state so the map and metrics always reflect the current scenario.
+        current_upload_name = uploaded_file.name if uploaded_file is not None else None
+        previous_upload_name = st.session_state.get("last_uploaded_filename")
+        if current_upload_name != previous_upload_name:
+            st.session_state["last_uploaded_filename"] = current_upload_name
+            st.session_state.pop("workflow_state", None)
+            state = None
+
         st.divider()
 
         # ── Default scenario controls ─────────────────────────────────────────
@@ -231,6 +265,7 @@ def main() -> None:
             active_data = generate_scenario(DEFAULT_OUTPUT_PATH)
             st.session_state["active_raw_data"] = active_data
             st.session_state.pop("workflow_state", None)
+            st.session_state.pop("last_uploaded_filename", None)
             state = None
             st.toast("Default scenario regenerated.")
 
@@ -281,7 +316,11 @@ def main() -> None:
     # ── Map ───────────────────────────────────────────────────────────────────
     routes = state.final_routes if state else []
     map_data = active_data if state is None else state.raw_data
-    map_view = render_map(map_data, routes)
+    # Build a stable cache key from the current data so the map only
+    # rebuilds when something actually changed.
+    cache_key = _map_cache_key(map_data, routes)
+    routes_json = json.dumps([r.model_dump() for r in routes])
+    map_view = render_map(cache_key, map_data, routes_json)
     st_folium(map_view, width=None, height=560, returned_objects=[])
 
     # ── Results ───────────────────────────────────────────────────────────────

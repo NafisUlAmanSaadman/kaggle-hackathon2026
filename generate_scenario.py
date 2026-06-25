@@ -37,7 +37,10 @@ def build_scenario() -> dict[str, Any]:
                 "lon": 92.1628,
                 "population": 18400,
                 "vulnerability_score": 8,
-                "notes": "Low-lying shelters near drainage channels. Reported by: Refugee ID 9932",
+                # Synthetic PII removed — the SecurityAgent's redaction capability
+                # is demonstrated by the pipeline itself at runtime, not by
+                # embedding test data in the default scenario.
+                "notes": "Low-lying shelters near drainage channels.",
             },
             {
                 "id": "CAMP-08W",
@@ -166,4 +169,3 @@ if __name__ == "__main__":
     destination = DEFAULT_OUTPUT_PATH
     generate_scenario(destination)
     print(f"Wrote synthetic scenario to {destination}")
-

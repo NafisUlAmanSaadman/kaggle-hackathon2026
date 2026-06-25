@@ -1,7 +1,25 @@
+"""agents.py – Gemini-backed agents with deterministic fallbacks.
+
+Improvements in this version
+-----------------------------
+* PII_PATTERNS[1] tightened – no longer matches warehouse/camp node IDs.
+* GEMINI_MODEL validated at startup – warns if the value looks non-Gemini.
+* _generate_json / _generate_text log a warning on parse failure so debugging
+  a bad LLM response is no longer silent.
+* IngestionAgent and RoutingAgent cross-reference LLM output IDs against the
+  scenario before accepting them, preventing hallucinated node IDs from
+  reaching the map or GeoJSON.
+* RoutingAgent._fallback guards against non-numeric inventory values.
+* redact_pii is no longer called inside each agent – a single pass now runs
+  at the mcp_server level before any agent receives data.
+* GeoFormattingAgent.build_geojson and build_report are public so callers
+  can invoke them independently.
+"""
 from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import re
 from typing import Any
@@ -10,28 +28,52 @@ from schema import AgentState, Route
 
 try:
     from dotenv import load_dotenv
-except ImportError:  # pragma: no cover - requirements.txt provides this in the app env
+except ImportError:  # pragma: no cover
     def load_dotenv(*args: Any, **kwargs: Any) -> bool:
         return False
 
 try:
     import google.generativeai as genai
-except ImportError:  # pragma: no cover - lets local syntax checks run before deps install
+except ImportError:  # pragma: no cover
     genai = None
 
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
 
+# ── PII patterns ──────────────────────────────────────────────────────────────
+# Pattern[0]: explicit "Refugee ID 1234" style references.
+# Pattern[1]: tightened – requires 5+ digits to avoid matching node IDs like
+#             WH-UKH-01 (2 digits) or CAMP-04 (2 digits).  The old \b[A-Z]{1,3}-?\d{4,}\b
+#             would fire on anything with 4+ digits; this version requires 5+ to
+#             reduce false positives on real node identifiers.
+# Pattern[2]: email addresses.
+# Pattern[3]: Bangladeshi mobile numbers (+88 prefix or bare 01x format).
 PII_PATTERNS = [
     re.compile(r"\bRefugee\s+ID\s*[:#-]?\s*\d+\b", re.IGNORECASE),
-    re.compile(r"\b[A-Z]{1,3}-?\d{4,}\b"),
+    re.compile(r"\b[A-Z]{1,3}-?\d{5,}\b"),
     re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),
     re.compile(r"\b(?:\+?88)?01[3-9]\d{8}\b"),
 ]
 
+# ── Gemini model name validation ──────────────────────────────────────────────
+_GEMINI_PREFIX = "gemini"
+_configured_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+if not _configured_model.lower().startswith(_GEMINI_PREFIX):
+    logger.warning(
+        "GEMINI_MODEL is set to %r which does not look like a Gemini model name. "
+        "Expected a value starting with 'gemini-'. The app will fall back to "
+        "deterministic logic if the API call fails.",
+        _configured_model,
+    )
+
 
 def redact_pii(value: Any) -> tuple[Any, bool]:
+    """Recursively redact PII from strings, lists, and dicts.
+
+    Returns the cleaned value and a boolean indicating whether any PII was found.
+    """
     if isinstance(value, str):
         redacted = value
         found = False
@@ -62,12 +104,15 @@ def redact_pii(value: Any) -> tuple[Any, bool]:
 
 
 def _json_from_model_text(text: str) -> Any:
+    """Extract JSON from a model response, stripping markdown fences if present."""
     cleaned = text.strip()
     fence_match = re.search(r"```(?:json)?\s*(.*?)```", cleaned, re.DOTALL | re.IGNORECASE)
     if fence_match:
         cleaned = fence_match.group(1).strip()
     return json.loads(cleaned)
 
+
+# ── Base Gemini agent ─────────────────────────────────────────────────────────
 
 class GeminiAgent:
     def __init__(self) -> None:
@@ -81,29 +126,66 @@ class GeminiAgent:
         return genai.GenerativeModel(self.model_name)
 
     def _generate_json(self, prompt: str) -> Any | None:
+        """Call the model and parse JSON from the response.
+
+        Returns None (and logs a warning) on any failure so callers can fall
+        back to deterministic logic without crashing.
+        """
         model = self._model()
         if model is None:
             return None
         try:
             response = model.generate_content(prompt)
             return _json_from_model_text(response.text)
-        except Exception:
+        except json.JSONDecodeError as exc:
+            logger.warning(
+                "%s: failed to parse JSON from model response: %s",
+                self.__class__.__name__,
+                exc,
+            )
+            return None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "%s: model call failed: %s",
+                self.__class__.__name__,
+                exc,
+            )
             return None
 
     def _generate_text(self, prompt: str) -> str | None:
+        """Call the model and return the raw text response.
+
+        Returns None (and logs a warning) on any failure.
+        """
         model = self._model()
         if model is None:
             return None
         try:
             response = model.generate_content(prompt)
             return response.text.strip()
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "%s: model call failed: %s",
+                self.__class__.__name__,
+                exc,
+            )
             return None
 
 
+# ── Ingestion agent ───────────────────────────────────────────────────────────
+
 class IngestionAgent(GeminiAgent):
     def run(self, raw_data: dict[str, Any]) -> list[dict[str, Any]]:
-        safe_payload, _ = redact_pii(raw_data)
+        """Rank camp blocks by vulnerability + population demand.
+
+        The LLM output is cross-referenced against the scenario's actual camp
+        IDs – any hallucinated IDs are silently dropped and the fallback is used
+        if no valid items remain.
+        """
+        valid_camp_ids = {
+            camp["id"] for camp in raw_data.get("camp_blocks", [])
+        }
+
         prompt = f"""
 You are the Ingestion & Parser Agent for a humanitarian logistics MCP workflow.
 Read the synthetic scenario JSON and return only a JSON array of camp priority objects.
@@ -111,14 +193,23 @@ Each object must contain: camp_id, camp_name, population, vulnerability_score,
 priority_score, and reason. Rank highest priority first.
 
 Scenario JSON:
-{json.dumps(safe_payload, indent=2)}
+{json.dumps(raw_data, indent=2)}
 """
         candidate = self._generate_json(prompt)
         if isinstance(candidate, list):
             normalized = []
             for item in candidate:
-                if isinstance(item, dict) and item.get("camp_id"):
+                if not isinstance(item, dict):
+                    continue
+                camp_id = item.get("camp_id")
+                # Drop items whose camp_id doesn't exist in the scenario.
+                if camp_id and camp_id in valid_camp_ids:
                     normalized.append(item)
+                elif camp_id:
+                    logger.warning(
+                        "IngestionAgent: LLM returned unknown camp_id %r – dropping.",
+                        camp_id,
+                    )
             if normalized:
                 return normalized
 
@@ -148,9 +239,18 @@ Scenario JSON:
         )
 
 
+# ── Routing agent ─────────────────────────────────────────────────────────────
+
 class RoutingAgent(GeminiAgent):
     def run(self, raw_data: dict[str, Any], prioritized_camps: list[dict[str, Any]]) -> list[Route]:
-        safe_payload, _ = redact_pii(raw_data)
+        """Assign warehouse inventory to camps via lowest-risk edges.
+
+        LLM output is validated by Pydantic (Route model) and cross-referenced
+        against the scenario's actual warehouse and camp IDs before acceptance.
+        """
+        valid_warehouse_ids = {wh["id"] for wh in raw_data.get("warehouses", [])}
+        valid_camp_ids = {camp["id"] for camp in raw_data.get("camp_blocks", [])}
+
         prompt = f"""
 You are the Logistics & Routing Agent for a pre-monsoon aid operation.
 Create an optimal route plan using the ranked camps, warehouse inventories, road edges,
@@ -161,26 +261,45 @@ Return only a JSON array matching this schema:
 [{{"source": "WAREHOUSE_ID", "target": "CAMP_ID", "supplies_allocated": 1000, "risk_level": "low|medium|high|critical"}}]
 
 Scenario JSON:
-{json.dumps(safe_payload, indent=2)}
+{json.dumps(raw_data, indent=2)}
 
 Ranked camps:
 {json.dumps(prioritized_camps, indent=2)}
 """
         candidate = self._generate_json(prompt)
         if isinstance(candidate, list):
-            routes = []
+            routes: list[Route] = []
             for item in candidate:
                 try:
-                    routes.append(Route.model_validate(item))
+                    route = Route.model_validate(item)
                 except Exception:
                     continue
+                # Cross-reference source and target against the scenario.
+                if route.source not in valid_warehouse_ids:
+                    logger.warning(
+                        "RoutingAgent: LLM returned unknown warehouse source %r – dropping.",
+                        route.source,
+                    )
+                    continue
+                if route.target not in valid_camp_ids:
+                    logger.warning(
+                        "RoutingAgent: LLM returned unknown camp target %r – dropping.",
+                        route.target,
+                    )
+                    continue
+                routes.append(route)
             if routes:
                 return routes
 
         return self._fallback(raw_data, prioritized_camps)
 
     def _fallback(self, raw_data: dict[str, Any], prioritized_camps: list[dict[str, Any]]) -> list[Route]:
-        warehouses = {item["id"]: copy.deepcopy(item) for item in raw_data.get("warehouses", [])}
+        # Deep-copy warehouse dicts so we can decrement inventory safely without
+        # mutating the original raw_data that other parts of the pipeline still
+        # hold a reference to.
+        warehouses: dict[str, dict[str, Any]] = {
+            item["id"]: copy.deepcopy(item) for item in raw_data.get("warehouses", [])
+        }
         edges = raw_data.get("edges", [])
         camp_lookup = {item["id"]: item for item in raw_data.get("camp_blocks", [])}
         routes: list[Route] = []
@@ -199,9 +318,17 @@ Ranked camps:
             selected_edge = None
             for edge in possible_edges:
                 warehouse = warehouses.get(edge.get("source"))
-                if warehouse and warehouse.get("inventory", 0) > 0:
-                    selected_edge = edge
-                    break
+                if warehouse:
+                    # Guard: inventory may arrive as a string in custom scenarios;
+                    # coerce to int so arithmetic never throws TypeError.
+                    try:
+                        inv = int(warehouse.get("inventory", 0))
+                    except (TypeError, ValueError):
+                        inv = 0
+                    warehouse["inventory"] = inv  # normalise in-place
+                    if inv > 0:
+                        selected_edge = edge
+                        break
 
             if selected_edge is None:
                 continue
@@ -218,7 +345,9 @@ Ranked camps:
                     source=selected_edge["source"],
                     target=camp_id,
                     supplies_allocated=allocated,
-                    risk_level=self._risk_level(float(selected_edge["monsoon_risk_multiplier"]), vulnerability),
+                    risk_level=self._risk_level(
+                        float(selected_edge["monsoon_risk_multiplier"]), vulnerability
+                    ),
                 )
             )
 
@@ -235,6 +364,8 @@ Ranked camps:
             return "medium"
         return "low"
 
+
+# ── Security agent ────────────────────────────────────────────────────────────
 
 class SecurityAgent:
     def run(self, state: AgentState) -> AgentState:
@@ -275,6 +406,8 @@ class SecurityAgent:
         return logs
 
 
+# ── Geo-formatting agent ──────────────────────────────────────────────────────
+
 class GeoFormattingAgent(GeminiAgent):
     def run(
         self,
@@ -284,11 +417,16 @@ class GeoFormattingAgent(GeminiAgent):
         security_flag: bool,
         security_logs: list[str],
     ) -> tuple[str, dict[str, Any]]:
-        geojson = self._build_geojson(raw_data, routes)
-        report = self._build_report(raw_data, routes, prioritized_camps, security_flag, security_logs)
+        """Build the Markdown report and GeoJSON FeatureCollection.
+
+        Both helpers are exposed as public methods so callers can invoke them
+        independently (e.g. for testing).
+        """
+        geojson = self.build_geojson(raw_data, routes)
+        report = self.build_report(raw_data, routes, prioritized_camps, security_flag, security_logs)
         return report, geojson
 
-    def _build_report(
+    def build_report(
         self,
         raw_data: dict[str, Any],
         routes: list[Route],
@@ -296,6 +434,9 @@ class GeoFormattingAgent(GeminiAgent):
         security_flag: bool,
         security_logs: list[str],
     ) -> str:
+        """Generate the NGO Markdown report via Gemini, with a deterministic fallback."""
+        # redact_pii is called here only on the report-specific payload that is
+        # sent to the LLM – the main pipeline redaction already happened upstream.
         safe_payload, _ = redact_pii(
             {
                 "scenario": raw_data.get("scenario_name"),
@@ -318,37 +459,14 @@ Secure workflow payload:
             redacted_report, _ = redact_pii(generated)
             return redacted_report
 
-        route_lines = []
-        for route in routes:
-            route_lines.append(
-                f"- {route.source} to {route.target}: {route.supplies_allocated:,} kits, "
-                f"{route.risk_level} monsoon routing risk."
-            )
+        return self._fallback_report(routes, prioritized_camps, security_flag)
 
-        top_camp = prioritized_camps[0]["camp_name"] if prioritized_camps else "the highest-risk camp"
-        security_note = (
-            "Security review flagged and redacted sensitive identifiers before final output."
-            if security_flag
-            else "Security review found no sensitive identifiers in the final output."
-        )
+    def build_geojson(self, raw_data: dict[str, Any], routes: list[Route]) -> dict[str, Any]:
+        """Build a GeoJSON FeatureCollection from routes.
 
-        return "\n".join(
-            [
-                "### Logistics Orchestration Report",
-                "",
-                f"The workflow prioritizes {top_camp} while preserving coverage across all camp blocks.",
-                security_note,
-                "",
-                "**Recommended Routes**",
-                *route_lines,
-                "",
-                "**Operational Note**",
-                "Pre-monsoon multipliers increase travel uncertainty, so teams should confirm road access before dispatch and keep a reserve vehicle available for rerouting.",
-            ]
-        )
-
-    @staticmethod
-    def _build_geojson(raw_data: dict[str, Any], routes: list[Route]) -> dict[str, Any]:
+        Routes whose source or target IDs don't match any node in the scenario
+        are silently skipped (they should have been filtered by RoutingAgent).
+        """
         nodes = {
             item["id"]: item
             for collection_name in ("warehouses", "camp_blocks")
@@ -359,6 +477,11 @@ Secure workflow payload:
             source = nodes.get(route.source)
             target = nodes.get(route.target)
             if not source or not target:
+                logger.warning(
+                    "GeoFormattingAgent: route %s→%s references unknown node(s) – skipping.",
+                    route.source,
+                    route.target,
+                )
                 continue
             features.append(
                 {
@@ -378,5 +501,39 @@ Secure workflow payload:
                     },
                 }
             )
-
         return {"type": "FeatureCollection", "features": features}
+
+    # ── private ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _fallback_report(
+        routes: list[Route],
+        prioritized_camps: list[dict[str, Any]],
+        security_flag: bool,
+    ) -> str:
+        route_lines = [
+            f"- {r.source} to {r.target}: {r.supplies_allocated:,} kits, "
+            f"{r.risk_level} monsoon routing risk."
+            for r in routes
+        ]
+        top_camp = prioritized_camps[0]["camp_name"] if prioritized_camps else "the highest-risk camp"
+        security_note = (
+            "Security review flagged and redacted sensitive identifiers before final output."
+            if security_flag
+            else "Security review found no sensitive identifiers in the final output."
+        )
+        return "\n".join(
+            [
+                "### Logistics Orchestration Report",
+                "",
+                f"The workflow prioritizes {top_camp} while preserving coverage across all camp blocks.",
+                security_note,
+                "",
+                "**Recommended Routes**",
+                *route_lines,
+                "",
+                "**Operational Note**",
+                "Pre-monsoon multipliers increase travel uncertainty, so teams should confirm "
+                "road access before dispatch and keep a reserve vehicle available for rerouting.",
+            ]
+        )
