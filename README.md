@@ -77,6 +77,16 @@ Runs **twice** in the pipeline (after routing, and after the report is written):
 
 ---
 
+## 🎨 "Storm & Sanctuary" Visual Redesign
+We've overhauled the Streamlit interface to transition from a generic template to a highly polished, custom dashboard tailored for Cox's Bazar monsoon logistics:
+- **Premium Typography**: Pairings of *Outfit* (for bold display headers) and *Inter* (for clean narrative text).
+- **Telemetry Header**: A custom top status bar with a pulsing, animated telemetry dot representing active operational status.
+- **Glassmorphic Sidebar**: Contrast-rich `#0F172A` control panel with customized file upload and primary action buttons.
+- **Logistics Metrics Grid**: Replacing standard stats with responsive, risk-aware HTML/CSS card widgets (indicating routes planned, total kits allocated, security/equity status, and GeoJSON outputs).
+- **Report & Log Cards**: Styled operational reports and logs contained within beautifully bordered cards.
+
+---
+
 ## 📂 File Structure
 
 ```
@@ -140,11 +150,11 @@ The app works fully offline using deterministic fallback logic in each agent. Al
 
 | Package | Version | Purpose |
 |---|---|---|
-| `streamlit` | 1.32.0 | Web UI framework |
+| `streamlit` | >=1.32.0 | Web UI framework |
 | `folium` | 0.16.0 | Interactive Leaflet maps |
 | `streamlit-folium` | 0.19.0 | Embeds Folium inside Streamlit |
-| `pydantic` | 2.6.4 | Data validation & schema enforcement |
-| `google-generativeai` | 0.4.1 | Gemini LLM integration |
+| `pydantic` | >=2.6.4 | Data validation & schema enforcement |
+| `google-generativeai` | 0.8.6 | Gemini LLM integration |
 | `python-dotenv` | 1.0.1 | Loads `.env` API keys |
 
 ---
