@@ -100,6 +100,286 @@ ANTIGRAVITY_HTML = """
 </div>
 """
 
+# ── Custom CSS Redesign Theme: "Storm & Sanctuary" ────────────────────────────
+CUSTOM_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --color-bg: #FAFAF9;
+  --color-sidebar: #0F172A;
+  --color-text-main: #1E293B;
+  --color-accent-teal: #0D9488;
+  --color-warning-amber: #D97706;
+  --color-critical-rust: #B91C1C;
+  --color-card-bg: #FFFFFF;
+}
+
+/* Global Font Override */
+.main {
+  background-color: var(--color-bg) !important;
+  color: var(--color-text-main) !important;
+  font-family: var(--font-body) !important;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  color: #0F172A !important;
+}
+
+/* Sidebar Styles */
+section[data-testid="stSidebar"] {
+  background-color: var(--color-sidebar) !important;
+  color: #F1F5F9 !important;
+  border-right: 1px solid #334155 !important;
+}
+section[data-testid="stSidebar"] h1, 
+section[data-testid="stSidebar"] h2, 
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] h4,
+section[data-testid="stSidebar"] h5,
+section[data-testid="stSidebar"] h6,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label {
+  color: #F1F5F9 !important;
+  font-family: var(--font-display) !important;
+}
+section[data-testid="stSidebar"] div.stButton > button {
+  background-color: #1E293B !important;
+  color: #F1F5F9 !important;
+  border: 1px solid #475569 !important;
+  border-radius: 8px !important;
+  font-family: var(--font-display) !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  width: 100% !important;
+}
+section[data-testid="stSidebar"] div.stButton > button:hover {
+  background-color: #0D9488 !important;
+  color: #FFFFFF !important;
+  border-color: #0D9488 !important;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3) !important;
+}
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {
+  background-color: #0D9488 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover {
+  background-color: #0F766E !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.5) !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] {
+  background-color: #1E293B !important;
+  border: 1px dashed #475569 !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section {
+  background-color: transparent !important;
+}
+section[data-testid="stSidebar"] hr {
+  border-color: #334155 !important;
+}
+
+/* Main Dashboard Header */
+.app-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #E2E8F0;
+  position: relative;
+}
+.radar-status {
+  display: inline-flex;
+  align-items: center;
+  background-color: #F0FDFA;
+  border: 1px solid #CCFBF1;
+  color: #0D9488;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #0D9488;
+  border-radius: 50%;
+  margin-right: 6px;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(13, 148, 136, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0);
+  }
+}
+.main-title {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 0 0.5rem 0 !important;
+  color: #0F172A !important;
+}
+.subtitle {
+  font-size: 1.05rem !important;
+  color: #64748B !important;
+  margin: 0 !important;
+  font-family: var(--font-body) !important;
+}
+
+/* Map Frame Style */
+iframe {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #E2E8F0 !important;
+  margin-bottom: 24px !important;
+}
+
+/* Sidebar Custom Metrics */
+.sidebar-metrics {
+  background: #1E293B;
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #334155;
+  margin-top: 16px;
+}
+.sidebar-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #334155;
+}
+.sidebar-metric-row:last-child {
+  border-bottom: none;
+}
+.sidebar-metric-row .label {
+  font-size: 0.85rem;
+  color: #94A3B8;
+}
+.sidebar-metric-row .val {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #F8FAFC;
+}
+
+/* Metrics Dashboard Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.metric-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01), 0 10px 15px -3px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.05);
+}
+.metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+.metric-card.cyan-border::before { background-color: #38BDF8; }
+.metric-card.teal-border::before { background-color: #0D9488; }
+.metric-card.warning-border::before { background-color: #10B981; }
+.metric-card.alert-border::before { background-color: #EF4444; }
+.metric-card.aqua-border::before { background-color: #06B6D4; }
+
+.metric-label {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.metric-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 8px 0 4px 0;
+  line-height: 1.1;
+}
+.metric-unit {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748B;
+}
+.metric-indicator {
+  font-size: 0.75rem;
+  color: #94A3B8;
+}
+
+/* Markdown Report Styling Wrapper */
+.report-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01), 0 20px 25px -5px rgba(0, 0, 0, 0.04);
+  margin-top: 24px;
+}
+.report-card h3 {
+  border-bottom: 2px solid #F1F5F9;
+  padding-bottom: 12px;
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #0F172A;
+}
+
+/* Security Logs Panel Styles */
+.security-logs-wrapper {
+  background-color: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.security-logs-wrapper.violating {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+}
+</style>
+"""
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -221,10 +501,22 @@ def main() -> None:
         page_icon="🚁",
         layout="wide",
     )
-    st.title("🛰️ Pre-Monsoon Logistics Orchestrator")
-    st.caption(
-        "A multi-agent AI system for humanitarian supply routing in Rohingya refugee camps · "
-        "Cox's Bazar, Bangladesh"
+    # Inject Custom Design System CSS
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+    
+    # Custom dashboard header
+    st.markdown(
+        """
+        <div class="app-header">
+          <div class="radar-status">
+            <span class="pulse-dot"></span>
+            ACTIVE ROUTING RADAR MONITOR
+          </div>
+          <h1 class="main-title">🛰️ Pre-Monsoon Logistics Orchestrator</h1>
+          <p class="subtitle">A multi-agent AI system for humanitarian supply routing in Rohingya refugee camps · Cox's Bazar, Bangladesh</p>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
     # ── Session state ─────────────────────────────────────────────────────────
@@ -306,9 +598,23 @@ def main() -> None:
         st.divider()
 
         # ── Quick metrics (always reflects the currently active scenario) ─────
-        st.metric("Warehouses", len(active_data.get("warehouses", [])))
-        st.metric("Camp Blocks", len(active_data.get("camp_blocks", [])))
-        st.metric("Weather Alerts", len(active_data.get("weather_alerts", [])))
+        sidebar_metrics_html = f"""
+        <div class="sidebar-metrics">
+          <div class="sidebar-metric-row">
+             <span class="label">🏢 Warehouses</span>
+             <span class="val">{len(active_data.get("warehouses", []))}</span>
+          </div>
+          <div class="sidebar-metric-row">
+             <span class="label">⛺ Camp Blocks</span>
+             <span class="val">{len(active_data.get("camp_blocks", []))}</span>
+          </div>
+          <div class="sidebar-metric-row">
+             <span class="label">⛈️ Weather Alerts</span>
+             <span class="val">{len(active_data.get("weather_alerts", []))}</span>
+          </div>
+        </div>
+        """
+        st.markdown(sidebar_metrics_html, unsafe_allow_html=True)
 
     # ── Workflow execution ────────────────────────────────────────────────────
     if run_workflow:
@@ -351,25 +657,55 @@ def main() -> None:
     # ── Results ───────────────────────────────────────────────────────────────
     if state:
         st.divider()
-        metric_cols = st.columns(4)
         total_supplies = sum(r.supplies_allocated for r in state.final_routes)
-        metric_cols[0].metric("Routes Planned", len(state.final_routes))
-        metric_cols[1].metric("Supplies Allocated", f"{total_supplies:,} kits")
-        metric_cols[2].metric(
-            "Security Flag", "⚠️ Raised" if state.security_flag else "✅ Clear"
-        )
-        metric_cols[3].metric(
-            "GeoJSON Features", len(state.geojson.get("features", []))
-        )
+        
+        # Build custom metrics grid
+        security_color_class = "alert-border" if state.security_flag else "warning-border"
+        security_status = "⚠️ Raised" if state.security_flag else "✅ Clear"
+        security_desc = "PII or equity alerts detected" if state.security_flag else "Compliance checks passed"
+        
+        metrics_html = f"""
+        <div class="metrics-grid">
+          <div class="metric-card cyan-border">
+            <div class="metric-label">Routes Planned</div>
+            <div class="metric-value">{len(state.final_routes)}</div>
+            <div class="metric-indicator">Camp blocks routed</div>
+          </div>
+          <div class="metric-card teal-border">
+            <div class="metric-label">Supplies Allocated</div>
+            <div class="metric-value">{total_supplies:,} <span class="metric-unit">kits</span></div>
+            <div class="metric-indicator">Distributed from inventory</div>
+          </div>
+          <div class="metric-card {security_color_class}">
+            <div class="metric-label">Security Flag</div>
+            <div class="metric-value">{security_status}</div>
+            <div class="metric-indicator">{security_desc}</div>
+          </div>
+          <div class="metric-card aqua-border">
+            <div class="metric-label">GeoJSON Features</div>
+            <div class="metric-value">{len(state.geojson.get("features", []))}</div>
+            <div class="metric-indicator">Mapped coordinates exported</div>
+          </div>
+        </div>
+        """
+        st.markdown(metrics_html, unsafe_allow_html=True)
 
         if state.security_logs:
+            wrapper_class = "violating" if state.security_flag else ""
             with st.expander("🔐 Security & Equity Logs", expanded=state.security_flag):
+                st.markdown(f'<div class="security-logs-wrapper {wrapper_class}">', unsafe_allow_html=True)
                 for log in state.security_logs:
                     icon = "⚠️" if "violation" in log.lower() or "warning" in log.lower() else "ℹ️"
-                    st.write(f"{icon} {log}")
+                    st.markdown(f'<div style="margin-bottom: 6px; font-family: var(--font-body); font-size: 0.9rem;">{icon} {log}</div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
-        st.markdown(state.markdown_report)
+        
+        # Combine the report into a single styled container to ensure it renders inside the same div wrapper
+        st.markdown(
+            f'<div class="report-card">\n\n{state.markdown_report}\n\n</div>',
+            unsafe_allow_html=True
+        )
 
         with st.expander("📄 Final Secure AgentState JSON"):
             st.json(state.model_dump())

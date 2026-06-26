@@ -4,4 +4,6 @@ __pycache__/
 .pytest_cache/
 .streamlit/secrets.toml
 scenario_data.local.json
+.venv/
+.agents/
 
