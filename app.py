@@ -183,10 +183,28 @@ section[data-testid="stSidebar"] div[data-testid="stFileUploader"] {
   background-color: #1E293B !important;
   border: 1px dashed #475569 !important;
   border-radius: 8px !important;
-  padding: 12px !important;
+  padding: 16px !important;
 }
 section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section {
   background-color: transparent !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section > div {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section > div > span {
+  display: block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button {
+  margin-top: 4px !important;
 }
 section[data-testid="stSidebar"] hr {
   border-color: #334155 !important;
@@ -242,11 +260,12 @@ section[data-testid="stSidebar"] hr {
   font-weight: 800 !important;
   letter-spacing: -0.02em !important;
   margin: 0 0 0.5rem 0 !important;
-  color: #0F172A !important;
+  color: #FFFFFF !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 .subtitle {
   font-size: 1.05rem !important;
-  color: #64748B !important;
+  color: #CBD5E1 !important;
   margin: 0 !important;
   font-family: var(--font-body) !important;
 }
@@ -263,7 +282,7 @@ iframe {
 .sidebar-metrics {
   background: #1E293B;
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 16px 18px;
   border: 1px solid #334155;
   margin-top: 16px;
 }
@@ -271,8 +290,8 @@ iframe {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #334155;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.6);
 }
 .sidebar-metric-row:last-child {
   border-bottom: none;
@@ -280,12 +299,14 @@ iframe {
 .sidebar-metric-row .label {
   font-size: 0.85rem;
   color: #94A3B8;
+  line-height: 1.5;
 }
 .sidebar-metric-row .val {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.1rem;
   color: #F8FAFC;
+  line-height: 1.5;
 }
 
 /* Metrics Dashboard Grid */
