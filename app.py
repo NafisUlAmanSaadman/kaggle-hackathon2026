@@ -179,6 +179,7 @@ section[data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover {
   transform: translateY(-1px) !important;
   box-shadow: 0 6px 20px rgba(13, 148, 136, 0.5) !important;
 }
+/* ── File Uploader Dropzone ────────────────────────────────── */
 section[data-testid="stSidebar"] div[data-testid="stFileUploader"] {
   background-color: #1E293B !important;
   border: 1px dashed #475569 !important;
@@ -187,24 +188,67 @@ section[data-testid="stSidebar"] div[data-testid="stFileUploader"] {
 }
 section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section {
   background-color: transparent !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
+/* Hide the broken Material Icon that renders literal "upload" text */
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button [data-testid="stIconMaterial"],
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button .material-icons,
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button .material-symbols-rounded,
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button span[aria-hidden="true"] {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  font-size: 0 !important;
+}
+/* Style the browse button cleanly */
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 20px !important;
+  background-color: #334155 !important;
+  color: #F1F5F9 !important;
+  border: 1px solid #475569 !important;
+  border-radius: 6px !important;
+  font-family: var(--font-display) !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  margin-top: 4px !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+  gap: 0 !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button:hover {
+  background-color: #0D9488 !important;
+  border-color: #0D9488 !important;
+  color: #FFFFFF !important;
+}
+/* Prevent any inner text duplication */
 section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section > div {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 8px !important;
+  gap: 6px !important;
   overflow: hidden !important;
+  text-align: center !important;
 }
-section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section > div > span {
+/* File-size label styling */
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] section > div > span,
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] small {
   display: block !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   max-width: 100% !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button {
-  margin-top: 4px !important;
+  font-size: 0.75rem !important;
+  color: #94A3B8 !important;
 }
 section[data-testid="stSidebar"] hr {
   border-color: #334155 !important;
