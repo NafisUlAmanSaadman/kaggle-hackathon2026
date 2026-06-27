@@ -42,18 +42,19 @@ RISK_COLORS = {
 # ── Floating route-marker CSS (injected into the Folium map) ──────────────────
 FLOATING_MARKER_CSS = """
 <style>
-@keyframes route-float {
-  0%   { transform: translateY(0);    opacity: 0.74; }
-  50%  { transform: translateY(-10px); opacity: 1; }
-  100% { transform: translateY(0);    opacity: 0.74; }
+@keyframes route-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); opacity: 0.8; }
+  50%  { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); opacity: 1; }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); opacity: 0.8; }
 }
 .route-float-marker {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 3px solid white;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
-  animation: route-float 1.8s ease-in-out infinite;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: route-pulse 2s ease-in-out infinite;
+  will-change: opacity, box-shadow;
 }
 </style>
 """
