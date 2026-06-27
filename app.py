@@ -488,7 +488,25 @@ def render_map(cache_key: str, raw_data: dict[str, Any], routes_json: str) -> fo
     """
     routes: list[Route] = [Route.model_validate(r) for r in json.loads(routes_json)]
 
-    m = folium.Map(location=[21.17, 92.15], zoom_start=11, tiles="CartoDB Dark_Matter")
+    # Start with no default tiles so we can stack two Esri layers.
+    m = folium.Map(location=[21.17, 92.15], zoom_start=11, tiles=None)
+
+    # Layer 1: Esri Dark Gray Base (dark background, no labels)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attr="&copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
+        name="Esri Dark Gray Base",
+        max_zoom=16,
+    ).add_to(m)
+
+    # Layer 2: Esri Dark Gray Reference (bright white English labels)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+        attr="&copy; Esri",
+        name="Esri Labels (EN)",
+        max_zoom=16,
+    ).add_to(m)
+
     m.get_root().html.add_child(folium.Element(FLOATING_MARKER_CSS))
 
     # Warehouses
