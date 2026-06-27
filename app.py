@@ -488,7 +488,7 @@ def render_map(cache_key: str, raw_data: dict[str, Any], routes_json: str) -> fo
     """
     routes: list[Route] = [Route.model_validate(r) for r in json.loads(routes_json)]
 
-    m = folium.Map(location=[21.17, 92.15], zoom_start=11, tiles="CartoDB Positron")
+    m = folium.Map(location=[21.17, 92.15], zoom_start=11, tiles="CartoDB Dark_Matter")
     m.get_root().html.add_child(folium.Element(FLOATING_MARKER_CSS))
 
     # Warehouses
